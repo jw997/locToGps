@@ -1,0 +1,27 @@
+{
+  "name": "loctogps",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@turf/boolean-within": "^7.2.0",
+    "@turf/helpers": "^7.2.0",
+    "@turf/point-to-line-distance": "^7.2.0",
+    "@turf/turf": "^4.7.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.21.0",
+    "@types/turf": "^3.5.32",
+    "eslint": "^9.21.0",
+    "globals": "^16.0.0"
+  }
+}

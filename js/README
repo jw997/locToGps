@@ -1,0 +1,82 @@
+Read in the intersections file for a a city
+../../gpsaddr/data/intersections_oakland.geojson 
+
+read a crash file from oakland in ccrs form i.e.
+
+crashMap/data/ccrsOakland/
+ccrs2016.json  ccrs2017.json  ccrs2018.json  ccrs2019.json  ccrs2020.json  ccrs2021.json  ccrs2022.json  ccrs2023.json  ccrs2024.json  ccrs2025.json
+
+for each crash
+if it has lat long, no change
+if no gps
+
+search for an intersection that matches the location
+e,g,
+"CollisionId": 4398060,
+"PrimaryRoad": "E 12TH ST",
+"SecondaryRoad": "34TH AV",
+
+no such intersection!
+
+try another 
+"CollisionId": 4398059,
+"PrimaryRoad": "12TH ST",
+"SecondaryRoad": "BROADWAY",
+
+ST vs Street!
+
+{
+	"type": "Feature",
+	"geometry": {
+	 "type": "Point",
+	 "coordinates": [
+	  -122.2720567,
+	  37.8029476
+	 ]
+	},
+	"properties": {
+	 "streets": [
+	  "12th Street",
+	  "Broadway"
+	 ]
+	}
+   },
+
+
+
+
+example 3
+   "CollisionId": 4688473,
+   "PrimaryRoad": "WEST GRAND AV",
+        "SecondaryRoad": "NORTHGATE AV",
+
+
+		{
+			"type": "Feature",
+			"geometry": {
+			 "type": "Point",
+			 "coordinates": [
+			  -122.2713382,
+			  37.81224
+			 ]
+			},
+			"properties": {
+			 "streets": [
+			  "Northgate Avenue",
+			  "West Grand Avenue"
+			 ]
+			}
+		   }
+
+		   
+Plan,
+read all street names from intersecitons file
+use them to load up fuse
+standardize crash repoert streets and then try to look up the intersections
+see how many we get at each stage?
+
+
+
+
+
+
