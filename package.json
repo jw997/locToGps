@@ -15,8 +15,11 @@
   "dependencies": {
     "@turf/boolean-within": "^7.2.0",
     "@turf/helpers": "^7.2.0",
+    "@turf/point-on-feature": "^7.3.1",
     "@turf/point-to-line-distance": "^7.2.0",
-    "@turf/turf": "^4.7.3"
+    "@turf/point-to-polygon-distance": "^7.3.1",
+    "@turf/turf": "^4.7.3",
+    "fuse.js": "^7.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",
