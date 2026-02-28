@@ -11,11 +11,11 @@ read array of location info and try to add gps
 */
 
 'use strict';
-import { count } from 'console';
-import fs, { readdir } from 'fs';
+
+import fs /*, { readdir } */ from 'fs';
 
 import Fuse from 'fuse.js'
-import { exit } from 'process';
+import process from 'process';
 
 import ntw from 'number-to-words';  // https://www.npmjs.com/package/number-to-words
 
@@ -60,7 +60,7 @@ function fileNameIze(str) {
 	return str.replaceAll(' ', '_');
 
 }
-
+/*
 function getFilesFromDirectory(dirName, regex) {
 	const files = fs.readdirSync(dirName);
 	const retval = [];
@@ -70,7 +70,7 @@ function getFilesFromDirectory(dirName, regex) {
 		}
 	}
 	return retval;
-}
+} */
 
 var lastTime = 0;
 function getMS(msg) {
@@ -505,15 +505,15 @@ class clsIntersection {
 
 		// const re = /(b1.*\/.*b2)|(b2.*\/.*b1)/
 		//const regExpSTr = `(${b1}.*\/${b2})|(${b2}.*\/${b1})`
-		const reSpecChar = /[\,\:\-\+\?\*\{\}\(\)\[\]\-]/g;
+	
 
 		const reb1 = RegExp.escape(b1); //    b1.replaceAll(reSpecChar, '.')   //('(','.').replaceAll(')','.').replaceAll('+','.');
 		const reb2 = RegExp.escape(b2);//b2.replaceAll(reSpecChar, '.') // '(','.').replaceAll(')','.').replaceAll('+','.');
 
 	//	const regExpStr = '((\\b' + reb1 + '.*\/.*\\b' + reb2 + ')|(.*\\b' + reb2 + '.*\/.*\\b' + reb1 + '))';
-     	const regExpStr = '((\\b' + reb1 + '.*\/.*\\b' + reb2 + '))';
+     	const regExpStr = '((\\b' + reb1 + '.*/.*\\b' + reb2 + '))';
 
-		 const regExpStrReverse = '((\\b' + reb2 + '.*\/.*\\b' + reb1 + '))';
+		// const regExpStrReverse = '((\\b' + reb2 + '.*/.*\\b' + reb1 + '))';
 
 		const re = new RegExp(regExpStr);
 		//console.log(re)
@@ -523,7 +523,7 @@ class clsIntersection {
 
 		// if first match gets nothign, try reverser order
 		if (result.done) {
-			const regExpStrReverse = '((\\b' + reb2 + '.*\/.*\\b' + reb1 + '))';
+			const regExpStrReverse = '((\\b' + reb2 + '.*/.*\\b' + reb1 + '))';
 			const reRev = new RegExp(regExpStrReverse );
 			matchingKeysIter = this.mapStreetPairToGPS.keys().filter((k) => k.match(reRev))
 		    result = matchingKeysIter.next();
@@ -562,7 +562,7 @@ class clsIntersection {
 		// base name is in middle
 		//const re = /(^NORTH |^SOUTH |^EAST |^WEST )?(.+?)\b(STREET$|ST$|ROAD$)?/;
 		//const re=/^(NORTH\b|SOUTH\b|EAST\b|WEST\b)?(\w+?)\b(AVE|AV|AVENUE|STREET|ST|RD|ROAD|BL|BLVD|BOULEVARD|DR|DRIVE|WY|WAY|CT|COURT|PKWY|PARKWAY)?$/
-		const re = /^(NORTH\b|SOUTH\b|EAST\b|WEST\b|N\b|S\b|E\b|W\b)?([\w\/\- ]+?)\b(AVE|AV|AVENUE|LN|LANE|PL|PLACE|STREET|ST|RD|ROAD|BL|BLVD|BOULEVARD|DR|DRIVE|WY|WAY|CT|COURT|HWY|HIGHWAY|PKWY|PARKWAY)?$/
+		const re = /^(NORTH\b|SOUTH\b|EAST\b|WEST\b|N\b|S\b|E\b|W\b)?([\w/\- ]+?)\b(AVE|AV|AVENUE|LN|LANE|PL|PLACE|STREET|ST|RD|ROAD|BL|BLVD|BOULEVARD|DR|DRIVE|WY|WAY|CT|COURT|HWY|HIGHWAY|PKWY|PARKWAY)?$/
 		//re=/^(NORTH\b|SOUTH\b|EAST\b|WEST\b)?(.+?)\b(AVE|AV|AVENUE|STREET|ST|RD|ROAD|BL|BLVD|BOULEVARD|DR|DRIVE|WY|WAY|CT|COURT|PKWY|PARKWAY)?$/
 
 		const parts = street.trim().toUpperCase().match(re);
@@ -720,39 +720,6 @@ function getIntersectionForCity(countyName, cityName) {
 	return retval;
 }
 
-
-
-
-
-
-/*
-function fixSuffix(street) {
-
-	const rules = [
-		[/ AVE$/, ' AVENUE'],
-		[/ AV$/, ' AVENUE'],
-		[/ ST$/, ' STREET'],
-		[/ RD$/, ' ROAD'],
-		[/ BL$/, ' BOULEVARD'],
-		[/ DR$/, ' DRIVE'],
-		[/ WY$/, ' WAY'],
-		[/ CT$/, ' COURT'],
-		[/ PKWY$/, ' PARKWAY'],
-
-
-	];
-
-	var retval = street;
-
-	for (const [reg, rep] of rules) {
-		retval = retval.replace(reg, rep);
-	}
-
-	return retval;
-}*/
-
-
-
 function getGPSFromRoads(features) {
 	var total = 0, missing = 0, matched = 0;
 	let itemCount = 0;
@@ -791,30 +758,11 @@ function getGPSFromRoads(features) {
 }
 
 
-/*
-console.log("Loading ccrs data from", ccrsJsonFile);
-const ccrsJSON = getJson(ccrsJsonFile)
-console.log("ccrs count:", ccrsJSON.features.length);
-countMissingGps(ccrsJSON.features);
 
-getGPSFromRoads(ccrsJSON.features);
-
-writeJson(outputCcrsJsonFile, ccrsJSON);
-*/
 function fileExists(path) {
 	return fs.existsSync(path);
 }
 
-//const inputfiles = getFilesFromDirectory(ccrsJsonDirectory, 'ccrs.*json')
-//for (const file of inputfiles) {
-//	const ccrsJsonFile = ccrsJsonDirectory + file
-//	const outputCcrsJsonFile = outputCcrsDirectory + file;
-
-// skip existing output files
-//	if (fileExists( outputCcrsJsonFile)) {
-//console.log("Skipping file that already is in output folder")
-//	continue;
-//	}
 
 console.log("Loading location data from", inputLocationJsonFile);
 const locationJSON = getJson(inputLocationJsonFile)
