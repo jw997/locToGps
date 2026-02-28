@@ -19,18 +19,23 @@ import { exit } from 'process';
 
 import ntw from 'number-to-words';  // https://www.npmjs.com/package/number-to-words
 
+const start = Date.now();
+
+
+const SEMICOLON = ';'
+
 const mapNumToString = new Map();
 
 function generateOrdinals() {
 
 
-	for (let i=100; i>0;i--) {
+	for (let i = 20; i > 0; i--) {
 		const s1 = ntw.toOrdinal(i).toUpperCase();
 		const s2 = ntw.toWordsOrdinal(i).toUpperCase();
 
-		
-		mapNumToString.set(s1,s2);
-		mapNumToString.set(s2,s1);
+
+		mapNumToString.set(s1, s2);
+		mapNumToString.set(s2, s1);
 	}
 
 }
@@ -126,13 +131,38 @@ function makeKey(s1, s2) {
 	const key = s1.toUpperCase().trim() + '/' + s2.toUpperCase().trim();
 	return key;
 }
+function makeOrderedKey(s1Arg, s2Arg) {
+	const s1 = s1Arg.toUpperCase().trim();
+	const s2 = s2Arg.toUpperCase().trim();
 
+	if (s1 <= s2) {
+		const key = s1+ '/' + s2;
+		return key;
+	} else {
+
+		const key = s2 + '/' + s1;
+		return key;
+
+	}
+}
+/* TODO hangle semicolon separated streets
+"streets": [
+	"Lincoln Street",
+	"Oroville Dam Boulevard East;CA 162"
+   ],
+   */
 function makePairs(array) {
 	const retval = [];
 	for (var i = 0; i < array.length - 1; i++) {
 		for (var j = i + 1; j < array.length; j++) {
-			const pair = [array[i], array[j]];
-			retval.push(pair)
+
+			for (const s1 of array[i].split(SEMICOLON)) {
+				for (const s2 of array[j].split(SEMICOLON)) {
+					const pair = [s1, s2];
+					retval.push(pair)
+				}
+			}
+
 		}
 	}
 
@@ -140,12 +170,24 @@ function makePairs(array) {
 
 }
 
+function memoGet(map, key) {
+	return map.get(key)
+}
+
+function memoSave(map, key, val) {
+	map.set(key, val)
+}
+// GLOBAL STATS
+
+var ngetIntersectionApprox = 0;
+var ngetIntersection = 0;
+
 class clsIntersection {
 	fileName; // not used
 	cityName;
 	countyName;
 	streetNames = new Set();  // filled in after all calls to addIntersection
-	mapStreetPairToGPS = new Map();
+	mapStreetPairToGPS = new Map();  // key is a/b where a <= b alphabetically
 	intersectionJSON; // filled in by calling addIntersection repeatedly
 
 	addIntersection(f) {
@@ -159,13 +201,15 @@ class clsIntersection {
 
 		for (const i of this.intersectionJSON.features) {
 			const streets = i.properties.streets;
-			const pairs = makePairs(streets);
+			const pairs = makePairs(streets);  // streets may have more than 2 entries
 			for (const p of pairs) {
-				const key = makeKey(p[0], p[1])
+				const key = makeOrderedKey(p[0], p[1])
 				this.mapStreetPairToGPS.set(key, i.geometry.coordinates);
 			}
 			for (const s of streets) {
-				this.streetNames.add(s.toUpperCase().trim()); // stdize on upcase for streets, cities, places
+				for (const sp of s.split(SEMICOLON)) { // todo 1ST NAME IS REAL, OTHERS ARE SYNONYMS  	Second Street;2nd Street
+					this.streetNames.add(sp.toUpperCase().trim()); // stdize on upcase for streets, cities, places
+				}
 			}
 		}
 
@@ -185,7 +229,7 @@ class clsIntersection {
 		this.intersectionJSON = { features: [] }; // start with empty feature list
 	}
 
-	fixPrefix(street) {
+	fixPrefix(street) {  // for SR RT CA highways??
 		const rules = [
 			[/^RT/, 'CA']
 
@@ -215,7 +259,7 @@ class clsIntersection {
 			[/ DR$/, ' DRIVE'],
 			[/ WY$/, ' WAY'],
 			[/ CT$/, ' COURT'],
-			[/ PKWY$/, ' PARKWAY'],
+			[/ PKWY$/, ' PARKWAY'],  // TODO add PL PLACE? LN LANE
 
 
 		];
@@ -229,14 +273,103 @@ class clsIntersection {
 		return retval;
 	}
 
+	addPrefixes(street) {
+		// remove any suffix
+		// add all possible
+		// filter for in street list for this city
+		// if unique, return that
+		const rules = [
+			[/^NORTH /, ''],
+			[/^SOUTH /, ''],
+			[/^EAST /, ''],
+			[/^WEST /, ''],
+
+
+		];
+		var baseName = street;
+		for (const [reg, rep] of rules) {
+			if (street.match(reg)) {
+				baseName = street.replace(reg, rep);
+				break;
+			}
+		}
+		const retval = []
+
+		const prefixes = [
+			'NORTH ',
+			'SOUTH ',
+			'EAST ',
+			'WEST '
+		]
+
+		for (const prefix of prefixes) {
+			retval.push(prefix + baseName)
+		}
+		return retval;
+
+	}
+
+	addSuffixes(street) {
+		// remove any suffix
+		// add all possible
+		// filter for in street list for this city
+		// if unique, return that
+		const rules = [
+			[/ AVE$/, ''],
+			[/ AV$/, ''],
+			[/ AVENUE$/, ''],
+			[/ ST$/, ''],
+			[/ STREET$/, ''],
+			[/ RD$/, ''],
+			[/ ROAD$/, ''],
+			[/ BL$/, ''],
+			[/ BOULEVARD$/, ''],
+			[/ DR$/, ''],
+			[/ DRIVE$/, ''],
+			[/ WY$/, ''],
+			[/ WAY$/, ''],
+			[/ CT$/, ''],
+			[/ COURT$/, ''],
+			[/ PKWY$/, ''],
+			[/ PARKWAY$/, ''],
+
+		];
+		var baseName = street;
+		for (const [reg, rep] of rules) {
+			if (street.match(reg)) {
+				baseName = street.replace(reg, rep);
+				break;
+			}
+		}
+		const retval = []
+
+		const suffixes = [
+			' AVENUE',
+			' STREET',
+			' ROAD',
+			' BOULEVARD',
+			' DRIVE',
+			' COURT',
+			' PARKWAY',
+			' PLACE'
+		]
+
+		for (const suffix of suffixes) {
+			retval.push(baseName + suffix)
+		}
+		return retval;
+	}
+
 	getSynonym(street) {
-		 // try all the number synonyms
+		// try all the number synonyms
+		// only match at word break to avoid 35TH -> 3FIFTH 
 		//return street.replace("9TH", "NINTH");
 
-		for (const [k,v] of mapNumToString) {
+		for (const [k, v] of mapNumToString) {
 			if (street.includes(k)) {
-				const retval = street.replace(k,v);
-				console.log(street, retval)
+				const rk = RegExp('\\b' + k)
+				const retval = street.replace(rk, v);
+				//console.log(street, retval)
 				return retval;
 			}
 		}
@@ -248,76 +381,219 @@ class clsIntersection {
 
 	logFuseStats() {
 		if (this.fusetries > 0) {
-			console.log("Fuse stats for ", this.countyName, this.cityName, 'tries', this.fusetries, 'matches', this.fusematches, 'memo hits', this.fusememohits)
+			//console.log("Fuse stats for ", this.countyName, this.cityName, 'tries', this.fusetries, 'matches', this.fusematches, 'memo hits', this.fusememohits)
 		}
 	}
 
-	fixName(arg) {
+	arrPush(arr, item) {
+		if (!arr.includes(item)) {
+			arr.push(item)
+		}
+	}
+
+	fixName(arg) { // return an array of possible equivalent names in this city
 		if (!arg) {
 			return arg;
 		}
+
 		if ("string" != typeof (arg)) {
 			arg = '' + arg;
 		}
 
 		const name = '' + arg.toUpperCase().trim();
 
+		const retval = [];
 
 		if (this.streetNames.has(name)) {
-			return name
+			//retval.push(name)
+			this.arrPush(retval, name)
 		}
 		const fixedSuffix = this.fixSuffix(name);
 		if (this.streetNames.has(fixedSuffix)) {
-			return fixedSuffix
+			//retval.push(fixedSuffix);
+			this.arrPush(retval, fixedSuffix)
 		}
-		const synonym = this.getSynonym(fixedSuffix)
+		const synonym = this.getSynonym(fixedSuffix) // TODO after putting the right synonyms, try the right suffixes??
 		if (this.streetNames.has(synonym)) {
-			return synonym
+			//retval.push(synonym);
+			this.arrPush(retval, synonym)
+
 		}
 		const fixedPrefix = this.fixPrefix(name);
 		if (this.streetNames.has(fixedPrefix)) {
-			return fixfixedPrefixedSuffix
+			//retval.push(fixedPrefix);
+			this.arrPush(retval, fixedPrefix)
 		}
 
-		this.fusetries++;
+		const allSuffixes = this.addSuffixes(name).filter((x) => this.streetNames.has(x));
+		for (const s of allSuffixes) {
+			//retval.push(s)
+			this.arrPush(retval, s)
 
-		// try the memo first
-		const mem = this.fuseMemo.get(name);
-		if (mem != undefined) {
-			this.fusememohits++;
-			return mem;
 		}
-		const results = this.fuseStreetMatcher.search(name, { limit: 5 });
-		const FUSELIMIT = 0.5;
-		if ((results.length >= 1) && (results[0].score <= FUSELIMIT)) {
-			const fuseMatch = results[0].item;
 
-			if (this.streetNames.has(fuseMatch)) {
-				this.fusematches++;
-				this.fuseMemo.set(name, fuseMatch)
-				return fuseMatch;
+		const allPrefixes = this.addPrefixes(name).filter((x) => this.streetNames.has(x));
+		for (const s of allPrefixes) {
+			//retval.push(s)
+			this.arrPush(retval, s)
+		}
+
+		/* TURN OFF FUSE */
+		if (retval.length == 0) {
+			this.fusetries++;
+
+			// try the memo first
+			const mem = this.fuseMemo.get(name);
+			if (mem != undefined) {
+				this.fusememohits++;
+				// retval.push(mem);
+				this.arrPush(retval, mem)
+			} else {
+
+				const allresults = this.fuseStreetMatcher.search(name, { limit: 5 });
+				const FUSELIMIT = 0.5;
+
+				const results = allresults.filter((r) => (r.score <= FUSELIMIT));
+
+				for (const res of results) {
+					const fuseMatch = res.item;
+
+					if (this.streetNames.has(fuseMatch)) {
+						this.fusematches++;
+
+						//retval.push(fuseMatch);
+						this.arrPush(retval, fuseMatch)
+
+						if (results.length == 1) {
+							this.fuseMemo.set(name, fuseMatch)
+						}
+					}
+				}
+				if (results.length == 0) {
+					this.fuseMemo.set(name, null)
+				}
+
 			}
 		}
-		this.fuseMemo.set(name, null);
-		return null;
+
+		return retval;
 
 	}
 
 	getIntersection(s1, s2) {
-		const k1 = makeKey(s1, s2);
+		const k1 = makeOrderedKey(s1, s2);
 		const i1 = this.mapStreetPairToGPS.get(k1);
 
 		if (i1) {
 			return i1;
 		}
-		const k2 = makeKey(s2, s1);
+	/*	const k2 = makeKey(s2, s1);
 		const i2 = this.mapStreetPairToGPS.get(k2);
 
 		if (i2) {
 			return i2;
-		}
+		}*/
 		return null;
 	}
+
+	getIntersectionApprox(b1Arg, b2Arg) {
+
+		// they are upcase and trimed, figure out which is first
+		// alphabawetical order of base name might be wrong if there are prefixes
+		const [b1, b2] = (b1Arg < b2Arg) ? [b1Arg, b2Arg] : [b2Arg, b1Arg];
+
+
+		// const re = /(b1.*\/.*b2)|(b2.*\/.*b1)/
+		//const regExpSTr = `(${b1}.*\/${b2})|(${b2}.*\/${b1})`
+		const reSpecChar = /[\,\:\-\+\?\*\{\}\(\)\[\]\-]/g;
+
+		const reb1 = RegExp.escape(b1); //    b1.replaceAll(reSpecChar, '.')   //('(','.').replaceAll(')','.').replaceAll('+','.');
+		const reb2 = RegExp.escape(b2);//b2.replaceAll(reSpecChar, '.') // '(','.').replaceAll(')','.').replaceAll('+','.');
+
+	//	const regExpStr = '((\\b' + reb1 + '.*\/.*\\b' + reb2 + ')|(.*\\b' + reb2 + '.*\/.*\\b' + reb1 + '))';
+     	const regExpStr = '((\\b' + reb1 + '.*\/.*\\b' + reb2 + '))';
+
+		 const regExpStrReverse = '((\\b' + reb2 + '.*\/.*\\b' + reb1 + '))';
+
+		const re = new RegExp(regExpStr);
+		//console.log(re)
+
+		let matchingKeysIter = this.mapStreetPairToGPS.keys().filter((k) => k.match(re))
+		let result = matchingKeysIter.next();
+
+		// if first match gets nothign, try reverser order
+		if (result.done) {
+			const regExpStrReverse = '((\\b' + reb2 + '.*\/.*\\b' + reb1 + '))';
+			const reRev = new RegExp(regExpStrReverse );
+			matchingKeysIter = this.mapStreetPairToGPS.keys().filter((k) => k.match(reRev))
+		    result = matchingKeysIter.next();
+		}
+		let matchCount = 0;
+		let mat;
+		while (!result.done) {
+			matchCount++;
+			mat = result.value;
+			//console.log(mat)
+			//console.log('Match', matchingKeys.length, 'First Match:', this.mapStreetPairToGPS.get(matchingKeys[0]))
+			result = matchingKeysIter.next();
+		}
+		if (matchCount == 1) {
+			return this.mapStreetPairToGPS.get(mat);
+		}
+		if (matchCount > 1) {
+			console.log("Too many matches:", matchCount)
+		}
+	}
+
+	mapMemoBaseName = new Map();
+
+	baseName(streetArg) {
+		/(^NORTH |^SOUTH |^EAST |^WEST |^N |^S |^E |^W )?(.+?)\b(STREET$|ST$|ROAD$)?/
+
+		const street = streetArg.toUpperCase().trim();
+
+		const memoVal = memoGet(this.mapMemoBaseName, street);
+		if (memoVal) {
+			return memoVal;
+		}
+
+		// prefix is news
+		// suffix is road type
+		// base name is in middle
+		//const re = /(^NORTH |^SOUTH |^EAST |^WEST )?(.+?)\b(STREET$|ST$|ROAD$)?/;
+		//const re=/^(NORTH\b|SOUTH\b|EAST\b|WEST\b)?(\w+?)\b(AVE|AV|AVENUE|STREET|ST|RD|ROAD|BL|BLVD|BOULEVARD|DR|DRIVE|WY|WAY|CT|COURT|PKWY|PARKWAY)?$/
+		const re = /^(NORTH\b|SOUTH\b|EAST\b|WEST\b|N\b|S\b|E\b|W\b)?([\w\/\- ]+?)\b(AVE|AV|AVENUE|LN|LANE|PL|PLACE|STREET|ST|RD|ROAD|BL|BLVD|BOULEVARD|DR|DRIVE|WY|WAY|CT|COURT|HWY|HIGHWAY|PKWY|PARKWAY)?$/
+		//re=/^(NORTH\b|SOUTH\b|EAST\b|WEST\b)?(.+?)\b(AVE|AV|AVENUE|STREET|ST|RD|ROAD|BL|BLVD|BOULEVARD|DR|DRIVE|WY|WAY|CT|COURT|PKWY|PARKWAY)?$/
+
+		const parts = street.trim().toUpperCase().match(re);
+		if (!parts || parts[2].trim() == '') {
+			//console.log('Street:', street, 'No base name reg ex match', street.toUpperCase());
+			memoSave(this.mapMemoBaseName, street)
+
+			return street;
+
+		}
+
+		if (parts.length == 4) {
+			//console.log('Street:', street, 'Prefix:', parts[1], 'Base:', parts[2], 'Suffix:', parts[3])
+			// did we find a base name?
+			if (parts[2]) {
+				const retval = parts[2].trim();
+				memoSave(this.mapMemoBaseName, retval)
+
+				return retval;
+
+
+			}
+		} else {
+			console.log(parts);
+		}
+
+
+
+
+	}
+
 	updateGPSFromRoads(f) {
 		const a = f.attributes ?? f
 		if (missingGps(a)) {
@@ -327,16 +603,13 @@ class clsIntersection {
 				console.log("Cannot get streets for ", a.CollisionId, 'from', a.Accident_Location);
 				return false;
 			}*/
-			const s1 = this.fixName(a.PrimaryRoad)//?? arrStreets[0]);
-			const s2 = this.fixName(a.SecondaryRoad)//?? arrStreets[1]);
+			const bp = this.baseName(a.PrimaryRoad);
+			const bs = this.baseName(a.SecondaryRoad);
 
-			if (!(s1 && s2)) {
-				//console.log("cant fix road names ", a.PrimaryRoad, ' ' , a.SecondaryRoad);
-				return false;
-			}
-			// try to find matching intersection
-			const gps = this.getIntersection(s1, s2)
+			let gps = this.getIntersectionApprox(bp, bs)
+
 			if (gps) {
+				ngetIntersectionApprox++;
 				//matched++;
 				//a.Latitude = gps[1]
 				//a.Longitude = gps[2];
@@ -347,10 +620,53 @@ class clsIntersection {
 				return true;
 
 				//	console.log( "found gps",gps, 'for' ,  s1,'/',s2)
-			} else {
-				console.log("gps not found for ", a.CollisionId, a.CityName, a.PrimaryRoad, a.SecondaryRoad, s1, '/', s2)
+			}
+			gps = this.getIntersectionApprox(bp.slice(0, 5), bs.slice(0, 5));
+			if (gps) {
+				ngetIntersectionApprox++;
+				//matched++;
+				//a.Latitude = gps[1]
+				//a.Longitude = gps[2];
+
+				[a.Longitude, a.Latitude] = gps;
+				a.Longitude = truncateFloat(a.Longitude, 6);
+				a.Latitude = truncateFloat(a.Latitude, 6);
+				return true;
+
+				//	console.log( "found gps",gps, 'for' ,  s1,'/',s2)
+			}
+
+
+			const arr1 = this.fixName(a.PrimaryRoad)//?? arrStreets[0]);
+			const arr2 = this.fixName(a.SecondaryRoad)//?? arrStreets[1]);
+
+			if ((arr1.length == 0) || (arr2.length == 0)) {
+				//console.log("cant fix road names ", a.PrimaryRoad, ' ' , a.SecondaryRoad);
 				return false;
 			}
+			for (const s1 of arr1) {
+				for (const s2 of arr2) {
+					const gps = this.getIntersection(s1, s2)
+					if (gps) {
+						ngetIntersection++;
+						//matched++;
+						//a.Latitude = gps[1]
+						//a.Longitude = gps[2];
+
+						[a.Longitude, a.Latitude] = gps;
+						a.Longitude = truncateFloat(a.Longitude, 6);
+						a.Latitude = truncateFloat(a.Latitude, 6);
+						return true;
+
+						//	console.log( "found gps",gps, 'for' ,  s1,'/',s2)
+					}
+				}
+				// try to find matching intersection
+			}
+
+			console.log("gps not found for ", a.CityName, a.PrimaryRoad, a.SecondaryRoad, arr1, '/', arr2)
+			return false;
+
 		}
 	}
 }
@@ -385,7 +701,8 @@ for (const obj of countyJSON) {
 	const json = getJson(intersectionsJsonDirectory + fileName);
 
 	for (const f of json.features) {
-		const cityName = f.properties.City ?? 'Unincorporated'
+		// newer intersection format is from osm-intersections is using cityName instead of City
+		const cityName = f.properties.City ?? f.properties.cityName ?? 'Unincorporated'
 		const objIntersection = getIntersection(countyName, cityName);
 		objIntersection.addIntersection(f);
 	}
@@ -438,8 +755,9 @@ function fixSuffix(street) {
 
 function getGPSFromRoads(features) {
 	var total = 0, missing = 0, matched = 0;
+	let itemCount = 0;
 	for (const f of features) {
-
+		itemCount++;
 		const a = f.attributes ?? f;;
 		total++;
 		if (missingGps(a)) {
@@ -449,45 +767,27 @@ function getGPSFromRoads(features) {
 			const city = a.CityName;
 			const countyName = a.CountyName;
 
+			a.PrimaryRoad = '' + a.PrimaryRoad;
+			a.SecondaryRoad = '' + a.SecondaryRoad;
+
 			const objIntersections = getIntersectionForCity(countyName, city);
 
 			if (!objIntersections) {
-				console.log("Intersection not found for", city);
+				console.log("Intersection not found for ", city);
 				continue;
 			}
 
 			if (objIntersections.updateGPSFromRoads(f)) {
 				matched++;
-			}
-			/*  fuse matcher moved to updateGPSFromRoads
-			const s1 = fixName(a.PrimaryRoad);
-			const s2 = fixName(a.SecondaryRoad);
-
-			if (!(s1 && s2)) {
-				//console.log("cant fix road names ", a.PrimaryRoad, ' ' , a.SecondaryRoad);
-				continue;
-			}
-			// try to find matching intersection
-			const gps = objIntersections.getIntersection(s1, s2)
-			if (gps) {
-				//matched++;
-				//a.Latitude = gps[1]
-				//a.Longitude = gps[2];
-
-				[a.Longitude, a.Latitude] = gps;
-				a.Longitude = truncateFloat(a.Longitude, 6);
-				a.Latitude = truncateFloat(a.Latitude, 6);
-				matched++;
-
-				//	console.log( "found gps",gps, 'for' ,  s1,'/',s2)
 			} else {
-				//	console.log( "gps not found for ", a.CollisionId, a.PrimaryRoad, a.SecondaryRoad,  s1,'/',s2)
+				console.log("Item ", itemCount, ' not matched', a)
 			}
-			*/
+
 
 		}
 	}
 	console.log('Total:', total, 'MissingGps:', missing, 'matched:', matched, 'Percent:', 100.0 * (1.0 - 1.0 * (missing - matched) / total));
+	console.log('match type:', ngetIntersectionApprox, ngetIntersection);
 }
 
 
@@ -530,3 +830,5 @@ for (const i of mapCountyCityToIntersections.values()) {
 
 
 console.log("bye");
+
+console.log(`Time elapsed: ${Date.now() - start} ms`);
