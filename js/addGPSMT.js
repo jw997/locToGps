@@ -67,8 +67,47 @@ async function run() {
 
 run().catch(err => console.error(err));
 */
+const MAXWORKERS = 20;
+// fill an array with county names
+// start up to MAXWORKERS
+// as they finish, in alphabetical order, start another
+// when they have all finished, exit
+//let done=false;
+const arrCounties = [];
+const arrWorkers = [];
+
+for (const obj of countyJSON) {
+	const countyName = obj.countyName;
+	arrCounties.push(countyName);
+}
+
+// start MAXWORKERS
+let nWorkers = 0;
+while (nWorkers < Math.min(MAXWORKERS, arrCounties.length)) {
+	const prom = runWorker(arrCounties.shift());
+	arrWorkers.push(prom);
+	nWorkers++;
+}
+
+const arrWorkerData = [] // collect worker responses
+
+while (arrWorkers.length > 0) { 
+	const prom = arrWorkers.shift();
+
+	const result = await prom;
+	arrWorkerData.push(...result.locations)
+	console.log("Finished county:", result.receivedData, result.locations.length)
+
+	const nextCounty = arrCounties.shift();
+	if (nextCounty) {
+	    arrWorkers.push(runWorker(nextCounty));
+	}
+}
+
+console.log("All workers done")
 
 
+/*
 const arrWorkers = [];
 for (const obj of countyJSON) {
 	const countyName = obj.countyName;
@@ -84,10 +123,10 @@ for (const prom of arrWorkers) {
 	arrWorkerData.push( ...result.locations)
 	console.log( "Finished county:", result.receivedData, result.locations.length)
 }
-
+*/
 
 writeJson(outputLocationJsonFile, arrWorkerData)
 
 const msElepase = Date.now() - start;
-const secondsElapsed = msElepase/1000.0
+const secondsElapsed = msElepase / 1000.0
 console.log(`Time elapsed: ${secondsElapsed} seconds`);

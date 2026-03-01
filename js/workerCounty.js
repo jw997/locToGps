@@ -610,7 +610,7 @@ class clsIntersection {
 
 			}
 		} else {
-			console.log(parts);
+			//console.log(parts);
 		}
 
 
@@ -793,7 +793,7 @@ function getGPSFromRoads(features) {
 			const objIntersections = getIntersectionForCity(countyName, city);
 
 			if (!objIntersections) {
-				console.log("Intersection not found for ", city);
+				//console.log("Intersection not found for ", city);
 				continue;
 			}
 
@@ -830,7 +830,7 @@ function handleMessageCounty(countyName) {
 
 }
 
-console.log(workerData);
+console.log("worker started for "  , workerData);
 const arrCountyName = workerData.split(SEMICOLON);
 for (const countyName of arrCountyName) {
 	initCounty(countyName);
