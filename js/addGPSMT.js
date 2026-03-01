@@ -6,6 +6,7 @@ import {
 } from 'node:worker_threads';
 
 import fs /*, { readdir } */ from 'fs';
+import { count } from 'console';
 const start = Date.now();
 
 const inputLocationJsonFile = process.argv[2] ?? './test/addOneGps/location.json';  // 10 things
@@ -31,20 +32,34 @@ function getJson(filename) {
 	return obj;
 }
 const countyJSON = getJson(countyCityJsonFile)
+const arrCounties = [];
+for (const obj of countyJSON) {
+	const countyName = obj.countyName;
+	arrCounties.push(countyName);
+}
 
 function rfunc(arg) {
-	console.log ("rfunc called", arg)
+	console.log("rfunc called", arg)
 }
 // Function to create a new worker
-function runWorker(workerData) {
+function runWorker(countyData) {
+
+	const countyName = countyData.CountyName;
+	if (!arrCounties.includes(countyName)) {
+		throw "unexpected county", countyName
+	}
+
+	const locations = countyData.locations;
+
 	return new Promise((resolve, reject) => {
 		// Create a new worker
-		const worker = new Worker('./js/workerCounty.js', { workerData });
+		console.log("Starting worker for ", countyName, ' locations:', locations.length);
+		const worker = new Worker('./js/workerCounty.js', { name: countyName, workerData: countyData });
 
 		function handleMessage(result) {
-			
+
 			// start new worker for another county
-			const nextCounty = arrCounties.shift();
+			const nextCounty = arrStartOrder.shift();
 			if (nextCounty) {
 				arrWorkers.push(runWorker(nextCounty));
 			}
@@ -87,37 +102,72 @@ const MAXWORKERS = 4;
 // as they finish, in alphabetical order, start another
 // when they have all finished, exit
 //let done=false;
-const arrCounties = [];
+
 const arrWorkers = [];
 
-for (const obj of countyJSON) {
-	const countyName = obj.countyName;
-	arrCounties.push(countyName);
+
+
+// read the location.json, group by county and order the counties by amouunt of data
+// start with Los angelees....
+
+const locationJSON = getJson(inputLocationJsonFile);
+let groups = Object.groupBy(locationJSON, (x) => x.CountyName);
+// put them in a map
+const mapCountyToLocationArray = new Map();
+const arrCountyLocations = [];
+
+for (const county of Object.getOwnPropertyNames(groups)) {
+	mapCountyToLocationArray.set(county, groups[county])
+	arrCountyLocations.push({ CountyName: county, locations: groups[county] })
+}
+const arrStartOrder = arrCountyLocations.sort((a, b) => (b.locations.length - a.locations.length));
+
+// make sure all county names are  real
+for (const o of arrStartOrder) {
+	if (!arrCounties.includes(o.CountyName)) {
+		throw "Unexpected County in location data ", o.CountyName
+	}
 }
 
 // start MAXWORKERS
 let nWorkers = 0;
-while (nWorkers < Math.min(MAXWORKERS, arrCounties.length)) {
-	const prom = runWorker(arrCounties.shift());
+while (nWorkers < Math.min(MAXWORKERS, arrStartOrder.length)) {
+	const prom = runWorker(arrStartOrder.shift());
 	arrWorkers.push(prom);
 	nWorkers++;
 }
 
 const arrWorkerData = [] // collect worker responses
 
-while (arrWorkers.length > 0) { 
+while (arrWorkers.length > 0) {
 	const prom = arrWorkers.shift();
 
 	const result = await prom;
-	arrWorkerData.push(...result.locations)
+	arrWorkerData.push(result)
 	console.log("Finished county:", result.receivedData, result.locations.length)
-/*
-	const nextCounty = arrCounties.shift();
-	if (nextCounty) {
-	    arrWorkers.push(runWorker(nextCounty));
-	}*/
+	/*
+		const nextCounty = arrCounties.shift();
+		if (nextCounty) {
+			arrWorkers.push(runWorker(nextCounty));
+		}
+	*/
 }
+function stringCompare(a, b) {
+	if (a < b) return -1;
+	if (a > b) return 1;
+	return 0;
+}
+// now sort it by county names and join it
+arrWorkerData.sort(
+	(a, b) =>
+		stringCompare(a.receivedData, b.receivedData))
 
+
+// accumulate data in original file order
+const arrOutput = []
+for (const arr of arrWorkerData) {
+	arrOutput.push( ...arr.locations)
+}
 console.log("All workers done")
 
 
@@ -139,7 +189,7 @@ for (const prom of arrWorkers) {
 }
 */
 
-writeJson(outputLocationJsonFile, arrWorkerData)
+writeJson(outputLocationJsonFile, arrOutput)
 
 const msElepase = Date.now() - start;
 const secondsElapsed = msElepase / 1000.0

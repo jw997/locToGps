@@ -830,8 +830,8 @@ function handleMessageCounty(countyName) {
 
 }
 
-console.log("worker started for "  , workerData);
-const arrCountyName = workerData.split(SEMICOLON);
+console.log("worker started for "  , workerData.CountyName);
+const arrCountyName = workerData.CountyName.split(SEMICOLON);
 for (const countyName of arrCountyName) {
 	initCounty(countyName);
 }
@@ -849,7 +849,8 @@ function getLocationsForCounty(inputLocationJsonFile, arrCountyName) {
 	return locations;
 
 }
-const locations = getLocationsForCounty(inputLocationJsonFile,  arrCountyName)
+// const locations = getLocationsForCounty(inputLocationJsonFile,  arrCountyName)
+const locations = workerData.locations;
 //const locationJSON = getJson(inputLocationJsonFile)
 //console.log("location count:", locationJSON.length);
 
@@ -869,7 +870,7 @@ getGPSFromRoads(locations);
 
 // Send the result back to the main thread
 parentPort.postMessage({
-	receivedData: workerData,
+	receivedData: workerData.CountyName,
 	locations: locations
 });
 
