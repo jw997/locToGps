@@ -32,14 +32,28 @@ function getJson(filename) {
 }
 const countyJSON = getJson(countyCityJsonFile)
 
+function rfunc(arg) {
+	console.log ("rfunc called", arg)
+}
 // Function to create a new worker
 function runWorker(workerData) {
 	return new Promise((resolve, reject) => {
 		// Create a new worker
 		const worker = new Worker('./js/workerCounty.js', { workerData });
 
+		function handleMessage(result) {
+			
+			// start new worker for another county
+			const nextCounty = arrCounties.shift();
+			if (nextCounty) {
+				arrWorkers.push(runWorker(nextCounty));
+			}
+			resolve(result)
+		}
+
 		// Listen for messages from the worker
-		worker.on('message', resolve);
+		//worker.on('message', resolve);
+		worker.on('message', handleMessage);
 
 		// Listen for errors
 		worker.on('error', reject);
@@ -67,7 +81,7 @@ async function run() {
 
 run().catch(err => console.error(err));
 */
-const MAXWORKERS = 20;
+const MAXWORKERS = 4;
 // fill an array with county names
 // start up to MAXWORKERS
 // as they finish, in alphabetical order, start another
@@ -97,11 +111,11 @@ while (arrWorkers.length > 0) {
 	const result = await prom;
 	arrWorkerData.push(...result.locations)
 	console.log("Finished county:", result.receivedData, result.locations.length)
-
+/*
 	const nextCounty = arrCounties.shift();
 	if (nextCounty) {
 	    arrWorkers.push(runWorker(nextCounty));
-	}
+	}*/
 }
 
 console.log("All workers done")
