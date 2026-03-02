@@ -830,14 +830,14 @@ function handleMessageCounty(countyName) {
 
 }
 
-console.log("worker started for "  , workerData.CountyName);
-const arrCountyName = workerData.CountyName.split(SEMICOLON);
-for (const countyName of arrCountyName) {
-	initCounty(countyName);
-}
+console.log("worker started for "  , workerData.countyName);
+//const arrCountyName = workerData.CountyName.split(SEMICOLON);
+//for (const countyName of arrCountyName) {
+initCounty(workerData.countyName);
+//}
 
 //console.log("Loading location data from", inputLocationJsonFile);
-
+/*
 function getLocationsForCounty(inputLocationJsonFile, arrCountyName) {
 	const locationJSON = getJson(inputLocationJsonFile)
 	//console.log("location count:", locationJSON.length);
@@ -848,9 +848,9 @@ function getLocationsForCounty(inputLocationJsonFile, arrCountyName) {
 	const locations = locationJSON.filter((x) => (setCounties.has(x.CountyName)));
 	return locations;
 
-}
+}*/
 // const locations = getLocationsForCounty(inputLocationJsonFile,  arrCountyName)
-const locations = workerData.locations;
+//const locations = workerData.locations;
 //const locationJSON = getJson(inputLocationJsonFile)
 //console.log("location count:", locationJSON.length);
 
@@ -866,12 +866,13 @@ const locations = workerData.locations;
 
 
 
-getGPSFromRoads(locations);
+getGPSFromRoads(workerData.locations);
 
 // Send the result back to the main thread
 parentPort.postMessage({
-	receivedData: workerData.CountyName,
-	locations: locations
+	countyName: workerData.countyName,
+	chunk: workerData.chunk,
+	locations: workerData.locations
 });
 
 
@@ -879,9 +880,9 @@ parentPort.postMessage({
 
 //writeJson(outputLocationJsonFile, locationJSON);
 
-for (const i of mapCountyCityToIntersections.values()) {
+//for (const i of mapCountyCityToIntersections.values()) {
 	//	i.logFuseStats();
-}
+//}
 
 
 //console.log("bye");

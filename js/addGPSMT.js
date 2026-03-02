@@ -38,22 +38,40 @@ for (const obj of countyJSON) {
 	arrCounties.push(countyName);
 }
 
-function rfunc(arg) {
-	console.log("rfunc called", arg)
+function chunkArray(arr, chunkSize) {
+
+	const n = Math.ceil(arr.length / chunkSize)
+
+	if (n > 1) {
+		console.log("chunking")
+	}
+
+	let start = 0
+	let end = chunkSize;
+
+	const arrChunks = []
+	while (start < arr.length) {
+		arrChunks.push( arr.slice(start, end));
+		start += chunkSize;
+		end += chunkSize
+	}
+	return arrChunks;
+	
 }
 // Function to create a new worker
 function runWorker(countyData) {
 
-	const countyName = countyData.CountyName;
+	const countyName = countyData.countyName;
 	if (!arrCounties.includes(countyName)) {
 		throw "unexpected county", countyName
 	}
 
 	const locations = countyData.locations;
+	const chunk = countyData.chunk;
 
 	return new Promise((resolve, reject) => {
 		// Create a new worker
-		console.log("Starting worker for ", countyName, ' locations:', locations.length);
+		console.log("Starting worker for ", countyName, 'chunk', chunk, 'locations:', locations.length);
 		const worker = new Worker('./js/workerCounty.js', { name: countyName, workerData: countyData });
 
 		function handleMessage(result) {
@@ -82,6 +100,7 @@ function runWorker(countyData) {
 	});
 }
 
+
 // Run the worker
 /*
 async function run() {
@@ -105,27 +124,35 @@ const MAXWORKERS = 4;
 
 const arrWorkers = [];
 
-
-
 // read the location.json, group by county and order the counties by amouunt of data
 // start with Los angelees....
 
 const locationJSON = getJson(inputLocationJsonFile);
 let groups = Object.groupBy(locationJSON, (x) => x.CountyName);
+
+const chunkSize = Math.ceil(Math.max(locationJSON.length / 10, 100))
+
+
+
 // put them in a map
-const mapCountyToLocationArray = new Map();
+//const mapCountyToLocationArray = new Map();
 const arrCountyLocations = [];
 
-for (const county of Object.getOwnPropertyNames(groups)) {
-	mapCountyToLocationArray.set(county, groups[county])
-	arrCountyLocations.push({ CountyName: county, locations: groups[county] })
+for (const county of Object.getOwnPropertyNames(groups).sort()) {
+	const chunks = chunkArray( groups[county], chunkSize);
+
+	//mapCountyToLocationArray.set(county, groups[county])
+
+	for (let n=0; n< chunks.length; n++) {
+		arrCountyLocations.push({ countyName: county, chunk:n, locations:chunks[n] })
+	}
 }
-const arrStartOrder = arrCountyLocations.sort((a, b) => (b.locations.length - a.locations.length));
+const arrStartOrder = arrCountyLocations //.sort((a, b) => (b.locations.length - a.locations.length));
 
 // make sure all county names are  real
 for (const o of arrStartOrder) {
-	if (!arrCounties.includes(o.CountyName)) {
-		throw "Unexpected County in location data ", o.CountyName
+	if (!arrCounties.includes(o.countyName)) {
+		throw "Unexpected County in location data ", o.countyName
 	}
 }
 
@@ -144,7 +171,7 @@ while (arrWorkers.length > 0) {
 
 	const result = await prom;
 	arrWorkerData.push(result)
-	console.log("Finished county:", result.receivedData, result.locations.length)
+	console.log("Finished county:", result.countyName, 'chunk:', result.chunk, result.locations.length)
 	/*
 		const nextCounty = arrCounties.shift();
 		if (nextCounty) {
@@ -152,17 +179,27 @@ while (arrWorkers.length > 0) {
 		}
 	*/
 }
+/*
 function stringCompare(a, b) {
 	if (a < b) return -1;
 	if (a > b) return 1;
 	return 0;
 }
-// now sort it by county names and join it
+function resultCompare(a,b) {
+	// compare by countyName string, chunk number
+
+	const s = stringCompare(a.countyName, b.countyName);
+	if (s!=0) {
+		return s;
+	}
+	return a.chunk - b.chunk;
+}
+// now sort it by county names and chunk numbers and join it
 arrWorkerData.sort(
 	(a, b) =>
-		stringCompare(a.receivedData, b.receivedData))
+		resultCompare(a, b))
 
-
+*/
 // accumulate data in original file order
 const arrOutput = []
 for (const arr of arrWorkerData) {
