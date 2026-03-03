@@ -228,6 +228,19 @@ for (const prom of arrWorkers) {
 
 writeJson(outputLocationJsonFile, arrOutput)
 
+// count missing gps
+let missing = 0;
+for (const arr of arrOutput) {
+	if (!arr.Latitude && !arr.Longitude) {
+		missing++;
+	}
+}
+const total = arrOutput.length
+console.log('Total:', total, 'MissingGps:', missing, 'Percent:', 100.0 * ( (total - missing) / total));
+
+// compute some stats
+
+
 const msElepase = Date.now() - start;
 const secondsElapsed = msElepase / 1000.0
 console.log(`Time elapsed: ${secondsElapsed} seconds`);

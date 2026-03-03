@@ -29,9 +29,9 @@ const start = Date.now();
 
 
 const SEMICOLON = ';'
+const CASE_INSENSITIVE = 'i';
 
-const mapNumToString = new Map();
-
+const mapNumRegExpToString = new Map()
 function generateOrdinals() {
 
 
@@ -39,13 +39,28 @@ function generateOrdinals() {
 		const s1 = ntw.toOrdinal(i).toUpperCase();
 		const s2 = ntw.toWordsOrdinal(i).toUpperCase();
 
+		const r1 = new RegExp( '\\b'+s1, CASE_INSENSITIVE);
+		const r2 = new RegExp( '\\b'+s2, CASE_INSENSITIVE);
 
-		mapNumToString.set(s1, s2);
-		mapNumToString.set(s2, s1);
+		mapNumRegExpToString.set(r1, s2);
+		mapNumRegExpToString.set(r2,  s1);
 	}
-
 }
 generateOrdinals();
+
+// [1st Street,Main Street] =>  [1st Street;First Street,Main Street]
+function addNumberForms( streets) {
+	//for (let s of streets) {
+	for (let i =0; i < streets.length; i++) {
+		
+		for (const [r,v] of mapNumRegExpToString.entries()) {
+			if (streets[i].match(r)) {
+				const syn = streets[i].replace(r,v);
+				streets[i] +=  SEMICOLON + syn;
+			}
+		}
+	}
+}
 
 for (let j = 0; j < process.argv.length; j++) {
 	//	console.log(j + ' -> ' + (process.argv[j]));
@@ -171,6 +186,7 @@ function makeOrderedKey(s1Arg, s2Arg) {
 	"Oroville Dam Boulevard East;CA 162"
    ],
    */
+  // handles multiple names separated by semicolon?
 function makePairs(array) {
 	const retval = [];
 	for (var i = 0; i < array.length - 1; i++) {
@@ -182,12 +198,9 @@ function makePairs(array) {
 					retval.push(pair)
 				}
 			}
-
 		}
 	}
-
 	return retval;
-
 }
 
 function memoGet(map, key) {
@@ -224,7 +237,11 @@ class clsIntersection {
 		}
 		this.initDone = true;
 		for (const i of this.intersectionJSON.features) {
+			
 			const streets = i.properties.streets;
+
+			addNumberForms(streets);
+
 			const pairs = makePairs(streets);  // streets may have more than 2 entries
 			for (const p of pairs) {
 				const key = makeOrderedKey(p[0], p[1])
@@ -437,12 +454,13 @@ class clsIntersection {
 			//retval.push(fixedSuffix);
 			this.arrPush(retval, fixedSuffix)
 		}
-		const synonym = this.getSynonym(fixedSuffix) // TODO after putting the right synonyms, try the right suffixes??
+		// adding synonyms to loaded intersection list for numbers at least 1ST FIRST
+/*		const synonym = this.getSynonym(fixedSuffix) // TODO after putting the right synonyms, try the right suffixes??
 		if (this.streetNames.has(synonym)) {
 			//retval.push(synonym);
 			this.arrPush(retval, synonym)
 
-		}
+		} */
 		const fixedPrefix = this.fixPrefix(name);
 		if (this.streetNames.has(fixedPrefix)) {
 			//retval.push(fixedPrefix);
@@ -811,14 +829,6 @@ function getGPSFromRoads(features) {
 }
 
 
-
-// now init them all
-
-//for (const [k, v] of mapCountyCityToIntersections.entries()) {
-/*	for (const v of mapCountyCityToIntersections.values()) {
-		v.init();
-	}
-*/
 /* when the main thread sends a message saying what county to process
 init that county
 read thruoght the location json and for each entry that has that countyName
@@ -826,38 +836,13 @@ process it
 when done, send the results back in a message to the main thread
 */
 
-function handleMessageCounty(countyName) {
-
-}
-
 console.log("worker started for "  , workerData.countyName);
 //const arrCountyName = workerData.CountyName.split(SEMICOLON);
 //for (const countyName of arrCountyName) {
 initCounty(workerData.countyName);
-//}
 
-//console.log("Loading location data from", inputLocationJsonFile);
-/*
-function getLocationsForCounty(inputLocationJsonFile, arrCountyName) {
-	const locationJSON = getJson(inputLocationJsonFile)
-	//console.log("location count:", locationJSON.length);
 
-	// filter matching counties
-	const setCounties = new Set(arrCountyName);
 
-	const locations = locationJSON.filter((x) => (setCounties.has(x.CountyName)));
-	return locations;
-
-}*/
-// const locations = getLocationsForCounty(inputLocationJsonFile,  arrCountyName)
-//const locations = workerData.locations;
-//const locationJSON = getJson(inputLocationJsonFile)
-//console.log("location count:", locationJSON.length);
-
-// filter matching counties
-//const setCounties = new Set(arrCountyName);
-
-//const locations = locationJSON.filter( (x) => (setCounties.has( x.CountyName)));
 
 
 
